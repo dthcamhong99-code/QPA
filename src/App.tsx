@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -17,58 +17,45 @@ interface Project {
 
 const DashboardLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-    {/* Outer orbital lines */}
-    <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#0284c7" strokeWidth="0.5" />
-    <path d="M 15 50 A 35 35 0 0 0 85 50" fill="none" stroke="#0284c7" strokeWidth="0.5" />
-    <circle cx="50" cy="10" r="1.5" fill="#0284c7" />
-    <circle cx="85" cy="50" r="1.5" fill="#0284c7" />
+    {/* Background */}
+    <circle cx="50" cy="50" r="48" fill="#ffffff" />
+    
+    {/* Arrow */}
+    <path d="M 24 42 L 62 22" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
+    <path d="M 50 22 L 62 22 L 56 32" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-    {/* Main circular background */}
-    <circle cx="50" cy="50" r="44" fill="#eff6ff" stroke="#1e3a8a" strokeWidth="1.5" />
+    {/* Bars */}
+    {/* Bar 1 */}
+    <rect x="24" y="50" width="14" height="28" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
+    {/* Bar 2 */}
+    <rect x="42" y="42" width="14" height="36" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
+    {/* Bar 3 */}
+    <rect x="60" y="32" width="14" height="46" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
 
-    {/* Base platform */}
-    <rect x="22" y="72" width="56" height="2" fill="#fde047" rx="1" />
-
-    {/* Background Leaves */}
-    <path d="M 65 72 C 70 55, 80 60, 75 72 Z" fill="#1e293b" />
-    <path d="M 25 72 C 20 60, 15 65, 20 72 Z" fill="#1e293b" />
-
-    {/* Tablet/Screen */}
-    <rect x="32" y="26" width="36" height="46" rx="2" fill="#334155" />
-    <rect x="34" y="28" width="32" height="42" fill="#ffffff" />
-    <rect x="34" y="28" width="32" height="4" fill="#60a5fa" />
-    <circle cx="36" cy="30" r="1" fill="#ffffff" />
-    <circle cx="63" cy="30" r="1" fill="#ffffff" />
-
-    {/* Inner Screen Content */}
-    {/* Pie Chart Area */}
-    <rect x="36" y="35" width="14" height="18" fill="#fef3c7" rx="1" />
-    <circle cx="43" cy="42" r="4" fill="none" stroke="#fde047" strokeWidth="2" />
-    <path d="M 43 42 L 43 38 A 4 4 0 0 1 47 42 Z" fill="#f472b6" />
-    <rect x="38" y="48" width="4" height="4" fill="#fde047" />
-    <rect x="38" y="54" width="4" height="4" fill="#f472b6" />
-
-    {/* Floating Line Chart */}
-    <rect x="52" y="36" width="20" height="12" fill="#fef08a" rx="1" />
-    <path d="M 54 42 Q 57 38, 60 42 T 68 40" fill="none" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" />
-    <circle cx="54" cy="45" r="2" fill="#f472b6" />
-
-    {/* Bar Chart */}
-    <rect x="48" y="62" width="1.5" height="6" fill="#db2777" />
-    <rect x="51" y="58" width="1.5" height="10" fill="#db2777" />
-    <rect x="54" y="60" width="1.5" height="8" fill="#db2777" />
-    <rect x="57" y="54" width="1.5" height="14" fill="#db2777" />
-    <rect x="60" y="57" width="1.5" height="11" fill="#db2777" />
-
-    {/* Foreground Leaves */}
-    <path d="M 62 72 C 68 62, 75 65, 70 72 Z" fill="#38bdf8" />
-    <path d="M 28 72 C 22 65, 18 68, 24 72 Z" fill="#38bdf8" />
-
-    {/* Person */}
-    <circle cx="29" cy="46" r="2" fill="#0f172a" />
-    <path d="M 26 50 Q 29 48, 32 50 L 31 56 L 27 56 Z" fill="#f9a8d4" />
-    <path d="M 27 56 L 31 56 L 32 70 L 29 70 L 29 62 L 28 62 L 28 70 L 25 70 Z" fill="#db2777" />
-    <circle cx="34" cy="51" r="1" fill="#f9a8d4" /> {/* Hand pointing */}
+    {/* Gear */}
+    <g transform="translate(66, 70)">
+      {/* Teeth Outlines */}
+      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" />
+      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" transform="rotate(45)" />
+      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" transform="rotate(90)" />
+      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" transform="rotate(135)" />
+      
+      {/* Teeth Fills */}
+      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" />
+      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" transform="rotate(45)" />
+      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" transform="rotate(90)" />
+      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" transform="rotate(135)" />
+      
+      {/* Main body outline */}
+      <circle cx="0" cy="0" r="16" fill="#1e293b" />
+      {/* Main body fill */}
+      <circle cx="0" cy="0" r="14.5" fill="#f59e0b" />
+      
+      {/* Inner hole outline */}
+      <circle cx="0" cy="0" r="8.5" fill="#1e293b" />
+      {/* Inner hole fill */}
+      <circle cx="0" cy="0" r="7" fill="#ffffff" />
+    </g>
   </svg>
 );
 
@@ -76,8 +63,8 @@ const INITIAL_PROJECTS: Project[] = [
   {
     id: '1',
     year: 2026,
-    planNumber: 'PA-2026-001',
-    projectName: 'Xây dựng mới 5km đường giao thông nông thôn',
+    planNumber: '123/PA-PCGĐ ngày 01/01/2026',
+    projectName: 'Xây dựng mới lộ ra 22kV Tư giản - Trạm 110kV Tham Lương',
     scale: 'Đường bê tông xi măng, rộng 3.5m, dày 20cm. Xây dựng hệ thống thoát nước dọc tuyến.',
     totalInvestment: 15000000000,
     status: 'registered',
@@ -87,8 +74,8 @@ const INITIAL_PROJECTS: Project[] = [
   {
     id: '2',
     year: 2026,
-    planNumber: 'PA-2026-002',
-    projectName: 'Cải tạo trường mầm non trung tâm',
+    planNumber: '124/PA-PCGĐ ngày 15/02/2026',
+    projectName: 'Nâng cấp, phát triển trạm và lưới hạ thế',
     scale: 'Sơn sửa 5 phòng học, làm mới khu vui chơi ngoài trời 200m2, nâng cấp nhà bếp.',
     totalInvestment: 8500000000,
     status: 'unregistered',
@@ -97,9 +84,9 @@ const INITIAL_PROJECTS: Project[] = [
   },
   {
     id: '3',
-    year: 2025,
-    planNumber: 'PA-2025-015',
-    projectName: 'Nâng cấp trạm y tế xã',
+    year: 2027,
+    planNumber: '001/PA-PCGĐ ngày 01/01/2027',
+    projectName: 'Cải tạo lưới trung thế khu vực phường 14',
     scale: 'Xây thêm 2 phòng chức năng, mua sắm trang thiết bị y tế cơ bản.',
     totalInvestment: 4200000000,
     status: 'registered',
@@ -109,9 +96,25 @@ const INITIAL_PROJECTS: Project[] = [
 ];
 
 export default function App() {
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('qpa_projects');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse projects from local storage', e);
+      }
+    }
+    return INITIAL_PROJECTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('qpa_projects', JSON.stringify(projects));
+  }, [projects]);
+
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [searchQuery, setSearchQuery] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Modal & Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -285,6 +288,75 @@ export default function App() {
     saveAs(new Blob([buffer]), `Danh_sach_du_an_${selectedYear}.xlsx`);
   };
 
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const arrayBuffer = await file.arrayBuffer();
+      await workbook.xlsx.load(arrayBuffer);
+
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        alert('File Excel không hợp lệ hoặc không có dữ liệu.');
+        return;
+      }
+
+      const newProjects: Project[] = [];
+      let isHeader = true;
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (isHeader) {
+          isHeader = false;
+          return;
+        }
+
+        const yearVal = row.getCell(2).value;
+        const planNumberVal = row.getCell(3).value;
+        const projectNameVal = row.getCell(4).value;
+        const totalInvestmentVal = row.getCell(5).value;
+        const scaleVal = row.getCell(6).value;
+        const pcgdDocumentVal = row.getCell(7).value;
+        const evnhcmcDocumentVal = row.getCell(8).value;
+        const statusValText = row.getCell(9).value;
+
+        let status: Project['status'] = 'unregistered';
+        if (statusValText === 'Đã đăng ký') status = 'registered';
+        else if (statusValText === 'Tạm dừng') status = 'paused';
+        else if (statusValText === 'Đã hủy') status = 'cancelled';
+
+        if (projectNameVal) {
+          newProjects.push({
+            id: Math.random().toString(36).substr(2, 9),
+            year: Number(yearVal) || new Date().getFullYear(),
+            planNumber: String(planNumberVal || ''),
+            projectName: String(projectNameVal || ''),
+            totalInvestment: Number(totalInvestmentVal) || 0,
+            scale: String(scaleVal || ''),
+            pcgdDocument: String(pcgdDocumentVal || ''),
+            evnhcmcDocument: String(evnhcmcDocumentVal || ''),
+            status: status
+          });
+        }
+      });
+
+      if (newProjects.length > 0) {
+        setProjects(newProjects);
+        alert(`Đã import thành công ${newProjects.length} dự án!`);
+      } else {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file Excel.');
+      }
+    } catch (error) {
+      console.error('Lỗi khi import Excel:', error);
+      alert('Có lỗi xảy ra khi đọc file Excel.');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
       
@@ -327,77 +399,90 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm z-0">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Dự án năm {selectedYear}</h2>
-            <p className="text-sm text-slate-500 mt-1 font-medium">Quản lý và theo dõi đăng ký danh mục các dự án ĐTXD</p>
+        <header className="bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm z-0 gap-6">
+          <div className="shrink-0">
+            <h2 className="text-2xl font-bold text-slate-900">Năm {selectedYear}</h2>
+            <p className="text-base text-slate-500 mt-1 font-medium italic">Quản lý và theo dõi danh mục dự án</p>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          <div className="flex-1 px-4 flex justify-end">
+            <div className="relative w-full max-w-md">
               <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Tìm số hiệu, tên dự án, VB..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 pr-4 py-3 bg-white border border-slate-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all w-96 text-slate-900 placeholder-slate-400 shadow-md hover:shadow-lg focus:shadow-lg"
+                className="pl-11 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 hover:border-yellow-500 transition-all w-full text-slate-900 placeholder-slate-400 shadow-md hover:shadow-lg focus:shadow-lg"
               />
             </div>
-            <button 
-              onClick={handleExportExcel}
-              className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-lg text-base font-semibold transition-all shadow-sm active:scale-95"
-            >
-              <Download className="w-5 h-5" />
-              Export Excel
-            </button>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <input 
+                type="file" 
+                accept=".xlsx, .xls" 
+                className="hidden" 
+                ref={fileInputRef}
+                onChange={handleImportExcel}
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-yellow-400 hover:border-yellow-400 hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 whitespace-nowrap"
+              >
+                <Upload className="w-4 h-4" />
+                Import Excel
+              </button>
+              <button 
+                onClick={handleExportExcel}
+                className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-yellow-400 hover:border-yellow-400 hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 whitespace-nowrap"
+              >
+                <Download className="w-4 h-4" />
+                Export Excel
+              </button>
+            </div>
             <button 
               onClick={openAddModal}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg text-base font-semibold transition-all shadow-md shadow-emerald-600/20 active:scale-95"
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 shadow-emerald-600/20 active:scale-95 active:translate-y-0 whitespace-nowrap"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               Thêm mới
             </button>
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200">
-                  <th className="px-6 py-5 text-base font-bold text-slate-500 text-center whitespace-nowrap">Số hiệu</th>
-                  <th className="px-6 py-5 text-base font-bold text-slate-500 text-center w-2/5">Tên dự án</th>
-                  <th className="px-6 py-5 text-base font-bold text-slate-500 text-center whitespace-nowrap">TMĐT</th>
-                  <th className="px-6 py-5 text-base font-bold text-slate-500 text-center whitespace-nowrap">Tình trạng</th>
-                  <th className="px-6 py-5 text-base font-bold text-slate-500 text-center w-24 whitespace-nowrap">Thao tác</th>
-                </tr>
+        <main className="flex-1 p-8 bg-slate-100 overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex-1 flex flex-col overflow-hidden">
+            <div className="overflow-y-auto flex-1">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
+                  <tr className="border-b border-slate-200">
+                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center w-48">Phương án</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center">Tên dự án</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center whitespace-nowrap">TMĐT</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center whitespace-nowrap">Tình trạng</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center w-24 whitespace-nowrap">Thao tác</th>
+                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProjects.length > 0 ? (
                   filteredProjects.map((project) => (
                     <tr key={project.id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <button 
-                          onClick={() => setViewingScaleProject(project)}
-                          className="flex w-full items-center justify-between gap-3 hover:bg-slate-100 p-2 pr-4 rounded-lg transition-colors border border-transparent hover:border-slate-200 group/btn"
-                          title="Xem thông tin dự án"
-                        >
-                          <div className="w-9 h-9 rounded-md bg-yellow-400 flex items-center justify-center text-white group-hover/btn:bg-yellow-500 transition-colors shadow-sm">
-                            <Folder className="w-5 h-5" />
-                          </div>
-                          <span className="text-slate-900 font-semibold text-base underline decoration-slate-300 underline-offset-4 group-hover/btn:decoration-slate-400 transition-colors">{project.planNumber}</span>
-                        </button>
+                      <td className="px-6 py-4">
+                        <span className="text-slate-900 font-normal text-sm break-words w-full">
+                          {project.planNumber}
+                        </span>
                       </td>
-                      <td className="px-6 py-5 text-justify">
-                        <p className="text-base font-medium text-slate-900">{project.projectName}</p>
+                      <td className="px-6 py-4 text-justify">
+                        <p className="text-sm font-normal text-slate-900">{project.projectName}</p>
                       </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-center">
-                        <span className="text-base font-semibold text-slate-700">{formatCurrency(project.totalInvestment)}</span>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="text-sm font-normal text-slate-700">{formatCurrency(project.totalInvestment)}</span>
                       </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-center">
-                        <div className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-sm font-medium border ${
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-normal border ${
                           project.status === 'registered' 
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                             : project.status === 'unregistered'
@@ -415,21 +500,28 @@ export default function App() {
                            project.status === 'paused' ? 'Tạm dừng' : 'Hủy'}
                         </div>
                       </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-2.5">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => openEditModal(project)}
-                            className="p-2 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 rounded-md transition-colors inline-flex"
+                            className="p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 rounded-md transition-colors inline-flex"
                             title="Chỉnh sửa"
                           >
-                            <Pencil className="w-5 h-5" />
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => setViewingScaleProject(project)}
+                            className="p-1.5 text-slate-400 hover:bg-yellow-50 hover:text-yellow-600 rounded-md transition-colors inline-flex"
+                            title="Xem thông tin dự án"
+                          >
+                            <Eye className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => setProjectToDelete(project)}
-                            className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors inline-flex"
+                            className="p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors inline-flex"
                             title="Xóa"
                           >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -450,6 +542,7 @@ export default function App() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </main>
       </div>
@@ -474,7 +567,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-8">
                 <div>
                   <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">Số hiệu phương án</p>
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-base font-bold text-emerald-700">
+                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-base font-bold text-slate-900">
                     {viewingScaleProject.planNumber}
                   </div>
                 </div>
