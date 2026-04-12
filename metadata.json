@@ -1,0 +1,5 @@
+{
+  "name": "Quản lý Dự án Đầu tư",
+  "description": "Ứng dụng quản lý dự án đầu tư xây dựng, theo dõi phương án, quy mô, tổng mức đầu tư theo năm.",
+  "requestFramePermissions": []
+}
