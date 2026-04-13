@@ -13,6 +13,7 @@ interface Project {
   status: 'registered' | 'unregistered' | 'paused' | 'cancelled';
   pcgdDocument: string;
   evnhcmcDocument: string;
+  notes: string;
 }
 
 const DashboardLogo = ({ className }: { className?: string }) => (
@@ -70,6 +71,7 @@ const INITIAL_PROJECTS: Project[] = [
     status: 'registered',
     pcgdDocument: '12/PCGĐ',
     evnhcmcDocument: '123/QĐ-EVNHCMC',
+    notes: '',
   },
   {
     id: '2',
@@ -81,6 +83,7 @@ const INITIAL_PROJECTS: Project[] = [
     status: 'unregistered',
     pcgdDocument: '',
     evnhcmcDocument: '',
+    notes: '',
   },
   {
     id: '3',
@@ -92,6 +95,7 @@ const INITIAL_PROJECTS: Project[] = [
     status: 'registered',
     pcgdDocument: '05/PCGĐ',
     evnhcmcDocument: '45/QĐ-EVNHCMC',
+    notes: '',
   },
 ];
 
@@ -113,6 +117,7 @@ export default function App() {
   }, [projects]);
 
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -127,6 +132,7 @@ export default function App() {
     pcgdDocument: '',
     evnhcmcDocument: '',
     scale: '',
+    notes: '',
   });
 
   const years = useMemo(() => {
@@ -138,13 +144,14 @@ export default function App() {
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
       const matchesYear = p.year === selectedYear;
+      const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
       const matchesSearch = p.planNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             p.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             (p.pcgdDocument && p.pcgdDocument.toLowerCase().includes(searchQuery.toLowerCase())) ||
                             (p.evnhcmcDocument && p.evnhcmcDocument.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesYear && matchesSearch;
+      return matchesYear && matchesStatus && matchesSearch;
     });
-  }, [projects, selectedYear, searchQuery]);
+  }, [projects, selectedYear, selectedStatus, searchQuery]);
 
   const openAddModal = () => {
     setEditingId(null);
@@ -156,6 +163,7 @@ export default function App() {
       planNumber: '',
       projectName: '',
       scale: '',
+      notes: '',
       totalInvestment: undefined,
     });
     setIsModalOpen(true);
@@ -188,6 +196,7 @@ export default function App() {
         status: formData.status as 'registered' | 'unregistered' | 'paused' | 'cancelled',
         pcgdDocument: formData.pcgdDocument || '',
         evnhcmcDocument: formData.evnhcmcDocument || '',
+        notes: formData.notes || '',
       };
       setProjects(prev => [project, ...prev]);
       setSelectedYear(project.year);
@@ -204,7 +213,7 @@ export default function App() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+    return new Intl.NumberFormat('vi-VN').format(amount);
   };
 
   const handleExportExcel = async () => {
@@ -217,11 +226,12 @@ export default function App() {
       { header: 'Năm thực hiện', key: 'year', width: 15 },
       { header: 'Số hiệu phương án', key: 'planNumber', width: 25 },
       { header: 'Tên dự án', key: 'projectName', width: 45 },
-      { header: 'TMĐT (đ)', key: 'totalInvestment', width: 18 },
+      { header: 'TMĐT (đồng)', key: 'totalInvestment', width: 18 },
       { header: 'Quy mô dự án', key: 'scale', width: 55 },
       { header: 'PCGĐ đăng ký', key: 'pcgdDocument', width: 22 },
-      { header: 'EVNHCMC chấp thuận', key: 'evnhcmcDocument', width: 22 },
-      { header: 'Tình trạng', key: 'status', width: 18 }
+      { header: 'EVNHCMC chấp thuận', key: 'evnhcmcDocument', width: 30 },
+      { header: 'Tình trạng', key: 'status', width: 18 },
+      { header: 'Ghi chú', key: 'notes', width: 30 }
     ];
 
     // Add rows
@@ -237,7 +247,8 @@ export default function App() {
         evnhcmcDocument: project.evnhcmcDocument || '',
         status: project.status === 'registered' ? 'Đã đăng ký' : 
                 project.status === 'unregistered' ? 'Chưa đăng ký' :
-                project.status === 'paused' ? 'Tạm dừng' : 'Hủy'
+                project.status === 'paused' ? 'Tạm dừng' : 'Hủy',
+        notes: project.notes || ''
       });
     });
 
@@ -271,8 +282,8 @@ export default function App() {
         // Default alignment: center
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-        // Tên dự án (col 4) and Quy mô dự án (col 6): justify and wrap text
-        if (colNumber === 4 || colNumber === 6) {
+        // Tên dự án (col 4), Quy mô dự án (col 6), EVNHCMC (col 8) and Ghi chú (col 11): justify and wrap text
+        if (colNumber === 4 || colNumber === 6 || colNumber === 8 || colNumber === 11) {
           cell.alignment = { vertical: 'middle', horizontal: 'justify', wrapText: true };
         }
         
@@ -320,6 +331,7 @@ export default function App() {
         const pcgdDocumentVal = row.getCell(7).value;
         const evnhcmcDocumentVal = row.getCell(8).value;
         const statusValText = row.getCell(9).value;
+        const notesVal = row.getCell(10).value;
 
         let status: Project['status'] = 'unregistered';
         if (statusValText === 'Đã đăng ký') status = 'registered';
@@ -336,7 +348,8 @@ export default function App() {
             scale: String(scaleVal || ''),
             pcgdDocument: String(pcgdDocumentVal || ''),
             evnhcmcDocument: String(evnhcmcDocumentVal || ''),
-            status: status
+            status: status,
+            notes: String(notesVal || '')
           });
         }
       });
@@ -370,28 +383,81 @@ export default function App() {
           <p className="text-base text-slate-400 mt-3 italic">Hệ thống quản lý phương án</p>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4">
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-3">Năm thực hiện</h2>
-          <div className="space-y-1">
-            {years.map(year => (
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-3">Năm thực hiện</h2>
+            <div className="space-y-1">
+              {years.map(year => (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-base transition-all ${
+                    selectedYear === year 
+                      ? 'bg-slate-700 text-white border-l-4 border-amber-500 font-semibold shadow-[0_0_15px_rgba(245,158,11,0.1)] ring-1 ring-amber-500/20' 
+                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border-l-4 border-transparent font-normal'
+                  }`}
+                >
+                  <Calendar className={`w-5 h-5 ${selectedYear === year ? 'text-amber-500' : 'text-slate-500'}`} />
+                  Năm {year}
+                  <span className={`ml-auto text-xs py-1 px-2.5 rounded-full font-medium ${
+                    selectedYear === year ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    {projects.filter(p => p.year === year).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-3">Tình trạng dự án</h2>
+            <div className="space-y-1">
+              {/* All Projects Filter */}
               <button
-                key={year}
-                onClick={() => setSelectedYear(year)}
+                onClick={() => setSelectedStatus('all')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-base transition-all ${
-                  selectedYear === year 
-                    ? 'bg-slate-800 text-white border-l-4 border-amber-500 font-medium shadow-sm' 
+                  selectedStatus === 'all' 
+                    ? 'bg-slate-700 text-white border-l-4 border-amber-500 font-semibold shadow-[0_0_15px_rgba(245,158,11,0.1)] ring-1 ring-amber-500/20' 
                     : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border-l-4 border-transparent font-normal'
                 }`}
               >
-                <Calendar className={`w-5 h-5 ${selectedYear === year ? 'text-amber-500' : 'text-slate-500'}`} />
-                Năm {year}
+                <AlignLeft className={`w-5 h-5 ${selectedStatus === 'all' ? 'text-amber-500' : 'text-slate-500'}`} />
+                Tất cả
                 <span className={`ml-auto text-xs py-1 px-2.5 rounded-full font-medium ${
-                  selectedYear === year ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
+                  selectedStatus === 'all' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
                 }`}>
-                  {projects.filter(p => p.year === year).length}
+                  {projects.filter(p => p.year === selectedYear).length}
                 </span>
               </button>
-            ))}
+
+              {/* Sub-items */}
+              <div className="space-y-1 mt-1">
+                {[
+                  { id: 'registered', label: 'Đã đăng ký', icon: CheckCircle2, color: 'text-emerald-500' },
+                  { id: 'unregistered', label: 'Chưa đăng ký', icon: Circle, color: 'text-amber-500' },
+                  { id: 'paused', label: 'Tạm dừng', icon: PauseCircle, color: 'text-slate-400' },
+                  { id: 'cancelled', label: 'Hủy', icon: XCircle, color: 'text-red-500' },
+                ].map(status => (
+                  <button
+                    key={status.id}
+                    onClick={() => setSelectedStatus(status.id)}
+                    className={`w-full flex items-center gap-3 pl-10 pr-4 py-2 rounded-lg text-sm transition-all ${
+                      selectedStatus === status.id 
+                        ? 'bg-slate-700/80 text-white border-l-4 border-amber-500/70 font-medium shadow-sm ring-1 ring-amber-500/10' 
+                        : 'text-slate-500 hover:bg-slate-800/30 hover:text-slate-300 border-l-4 border-transparent font-normal'
+                    }`}
+                  >
+                    <status.icon className={`w-4 h-4 ${selectedStatus === status.id ? 'text-amber-500' : status.color}`} />
+                    {status.label}
+                    <span className={`ml-auto text-[10px] py-0.5 px-2 rounded-full font-medium ${
+                      selectedStatus === status.id ? 'bg-amber-500/80 text-white' : 'bg-slate-800/50 text-slate-500'
+                    }`}>
+                      {projects.filter(p => p.year === selectedYear && p.status === status.id).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -444,7 +510,7 @@ export default function App() {
             </div>
             <button 
               onClick={openAddModal}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 shadow-emerald-600/20 active:scale-95 active:translate-y-0 whitespace-nowrap"
+              className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 shadow-emerald-700/20 active:scale-95 active:translate-y-0 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
               Thêm mới
@@ -459,18 +525,19 @@ export default function App() {
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
                   <tr className="border-b border-slate-200">
-                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center w-48">Phương án</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center">Tên dự án</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center whitespace-nowrap">TMĐT</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center whitespace-nowrap">Tình trạng</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-500 text-center w-24 whitespace-nowrap">Thao tác</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-40">Phương án</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center">Tên dự án</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap">TMĐT (đồng)</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap w-32">Tình trạng</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center">Ghi chú</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-20 whitespace-nowrap">Thao tác</th>
                   </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProjects.length > 0 ? (
                   filteredProjects.map((project) => (
                     <tr key={project.id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <span className="text-slate-900 font-normal text-sm break-words w-full">
                           {project.planNumber}
                         </span>
@@ -478,10 +545,10 @@ export default function App() {
                       <td className="px-6 py-4 text-justify">
                         <p className="text-sm font-normal text-slate-900">{project.projectName}</p>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
                         <span className="text-sm font-normal text-slate-700">{formatCurrency(project.totalInvestment)}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-4 py-4 whitespace-nowrap text-left">
                         <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-normal border ${
                           project.status === 'registered' 
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
@@ -500,7 +567,10 @@ export default function App() {
                            project.status === 'paused' ? 'Tạm dừng' : 'Hủy'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-6 py-4 text-justify">
+                        <p className="text-sm font-normal text-slate-700">{project.notes || '-'}</p>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => openEditModal(project)}
@@ -550,7 +620,7 @@ export default function App() {
       {/* View Scale Modal */}
       {viewingScaleProject && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-200 max-h-[90vh] flex flex-col">
             <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
               <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Maximize className="w-6 h-6 text-emerald-600" />
@@ -563,7 +633,7 @@ export default function App() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-8">
                 <div>
                   <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">Số hiệu phương án</p>
@@ -622,6 +692,12 @@ export default function App() {
                 <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">Chi tiết quy mô</p>
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-800 text-base leading-relaxed whitespace-pre-wrap text-justify">
                   {viewingScaleProject.scale || <span className="text-slate-400 italic">Chưa có thông tin quy mô</span>}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">Ghi chú</p>
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-800 text-base leading-relaxed whitespace-pre-wrap text-justify">
+                  {viewingScaleProject.notes || <span className="text-slate-400 italic">Không có ghi chú</span>}
                 </div>
               </div>
             </div>
@@ -778,6 +854,20 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <label className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-emerald-600" />
+                  Ghi chú
+                </label>
+                <textarea 
+                  rows={2}
+                  placeholder="Nhập ghi chú nếu có..."
+                  value={formData.notes || ''}
+                  onChange={e => setFormData({...formData, notes: e.target.value})}
+                  className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 resize-none bg-white placeholder-slate-400"
+                />
+              </div>
+
               <div className="pt-8 flex gap-4 justify-end border-t border-slate-100 mt-10">
                 <button 
                   type="button"
@@ -788,7 +878,7 @@ export default function App() {
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-3 text-base font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-600/20 active:scale-95"
+                  className="px-8 py-3 text-base font-semibold text-white bg-emerald-700 rounded-lg hover:bg-emerald-800 transition-colors shadow-md shadow-emerald-700/20 active:scale-95"
                 >
                   Lưu phương án
                 </button>
