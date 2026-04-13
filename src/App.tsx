@@ -1,7 +1,28 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip, CalendarCheck2 } from 'lucide-react';
+import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip, CalendarCheck2, LogIn, LogOut, User as UserIcon, Loader2 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  auth, 
+  db, 
+  googleProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged, 
+  collection, 
+  doc, 
+  setDoc, 
+  onSnapshot, 
+  query, 
+  where, 
+  getDocs,
+  deleteDoc, 
+  handleFirestoreError, 
+  OperationType,
+  User
+} from './lib/firebase';
+import { writeBatch } from 'firebase/firestore';
 
 interface Project {
   id: string;
@@ -14,6 +35,9 @@ interface Project {
   pcgdDocument: string;
   evnhcmcDocument: string;
   notes: string;
+  uid?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const DashboardLogo = ({ className }: { className?: string }) => (
@@ -87,21 +111,73 @@ const INITIAL_PROJECTS: Project[] = [
 ];
 
 export default function App() {
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('qpa_projects');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse projects from local storage', e);
-      }
-    }
-    return INITIAL_PROJECTS;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // Auth Listener
   useEffect(() => {
-    localStorage.setItem('qpa_projects', JSON.stringify(projects));
-  }, [projects]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+      if (!currentUser) {
+        setProjects([]);
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firestore Listener
+  useEffect(() => {
+    if (!isAuthReady || !user) return;
+
+    setLoading(true);
+    const q = query(collection(db, 'projects'), where('uid', '==', user.uid));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const projectsData: Project[] = [];
+      snapshot.forEach((doc) => {
+        projectsData.push({ ...doc.data(), id: doc.id } as Project);
+      });
+      console.log(`Firestore: Loaded ${projectsData.length} projects for UID: ${user.uid}`);
+      // Sort by createdAt descending
+      projectsData.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+      setProjects(projectsData);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'projects');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, user]);
+
+  const handleLogin = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error('Login failed:', error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -123,14 +199,14 @@ export default function App() {
   });
 
   const years = useMemo(() => {
-    const allYears = projects.map(p => p.year);
+    const allYears = projects.map(p => Number(p.year)).filter(y => !isNaN(y));
     const uniqueYears = Array.from(new Set([new Date().getFullYear(), ...allYears]));
     return uniqueYears.sort((a, b) => b - a);
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
-      const matchesYear = selectedYear === 'all' || p.year === selectedYear;
+      const matchesYear = selectedYear === 'all' || String(p.year) === String(selectedYear);
       const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
       const matchesSearch = p.planNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             p.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -143,7 +219,7 @@ export default function App() {
   const openAddModal = () => {
     setEditingId(null);
     setFormData({
-      year: selectedYear === 'all' ? new Date().getFullYear() : selectedYear,
+      year: selectedYear === 'all' ? new Date().getFullYear() : Number(selectedYear),
       status: 'unregistered',
       pcgdDocument: '',
       evnhcmcDocument: '',
@@ -162,42 +238,45 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleSaveProject = (e: React.FormEvent) => {
+  const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     if (!formData.planNumber || !formData.projectName || !formData.totalInvestment || !formData.year) return;
 
-    if (editingId) {
-      setProjects(prev => prev.map(p => 
-        p.id === editingId 
-          ? { ...formData, id: editingId } as Project 
-          : p
-      ));
-    } else {
-      const project: Project = {
-        id: Math.random().toString(36).substr(2, 9),
-        year: Number(formData.year),
-        planNumber: formData.planNumber,
-        projectName: formData.projectName,
-        scale: formData.scale || '',
-        totalInvestment: Number(formData.totalInvestment),
-        status: formData.status as 'registered' | 'unregistered' | 'paused' | 'cancelled',
-        pcgdDocument: formData.pcgdDocument || '',
-        evnhcmcDocument: formData.evnhcmcDocument || '',
-        notes: formData.notes || '',
-      };
-      setProjects(prev => [project, ...prev]);
-      if (selectedYear !== 'all') {
-        setSelectedYear(project.year);
+    try {
+      if (editingId) {
+        const projectRef = doc(db, 'projects', editingId);
+        const updatedData = {
+          ...formData,
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(projectRef, updatedData, { merge: true });
+      } else {
+        const newId = Math.random().toString(36).substr(2, 9);
+        const projectRef = doc(db, 'projects', newId);
+        const newProject = {
+          ...formData,
+          id: newId,
+          uid: user.uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(projectRef, newProject);
       }
+      setIsModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'projects');
     }
-    
-    setIsModalOpen(false);
   };
 
-  const handleDeleteProject = () => {
-    if (projectToDelete) {
-      setProjects(projects.filter(p => p.id !== projectToDelete.id));
-      setProjectToDelete(null);
+  const handleDeleteProject = async () => {
+    if (projectToDelete && user) {
+      try {
+        await deleteDoc(doc(db, 'projects', projectToDelete.id));
+        setProjectToDelete(null);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `projects/${projectToDelete.id}`);
+      }
     }
   };
 
@@ -292,7 +371,10 @@ export default function App() {
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) {
+      if (!user) alert('Vui lòng đăng nhập để import dữ liệu.');
+      return;
+    }
 
     try {
       const workbook = new ExcelJS.Workbook();
@@ -305,8 +387,27 @@ export default function App() {
         return;
       }
 
-      const newProjects: Project[] = [];
+      const projectsToImport: Project[] = [];
       let isHeader = true;
+
+      // Helper to get string value from cell
+      const getVal = (cell: ExcelJS.Cell) => {
+        if (!cell || cell.value === null || cell.value === undefined) return '';
+        if (typeof cell.value === 'object') {
+          if ('result' in cell.value) return String(cell.value.result || '');
+          if ('text' in cell.value) return String(cell.value.text || '');
+          if ('richText' in cell.value) return cell.value.richText.map(rt => rt.text).join('');
+          return '';
+        }
+        return String(cell.value);
+      };
+
+      // Helper to get number value from cell
+      const getNum = (cell: ExcelJS.Cell) => {
+        if (!cell || cell.value === null || cell.value === undefined) return 0;
+        if (typeof cell.value === 'object' && 'result' in cell.value) return Number(cell.value.result) || 0;
+        return Number(cell.value) || 0;
+      };
 
       worksheet.eachRow((row, rowNumber) => {
         if (isHeader) {
@@ -314,46 +415,72 @@ export default function App() {
           return;
         }
 
-        const yearVal = row.getCell(2).value;
-        const planNumberVal = row.getCell(3).value;
-        const projectNameVal = row.getCell(4).value;
-        const totalInvestmentVal = row.getCell(5).value;
-        const scaleVal = row.getCell(6).value;
-        const pcgdDocumentVal = row.getCell(7).value;
-        const evnhcmcDocumentVal = row.getCell(8).value;
-        const statusValText = row.getCell(9).value;
-        const notesVal = row.getCell(10).value;
+        const yearVal = getNum(row.getCell(2));
+        const planNumberVal = getVal(row.getCell(3));
+        const projectNameVal = getVal(row.getCell(4));
+        const totalInvestmentVal = getNum(row.getCell(5));
+        const scaleVal = getVal(row.getCell(6));
+        const pcgdDocumentVal = getVal(row.getCell(7));
+        const evnhcmcDocumentVal = getVal(row.getCell(8));
+        const statusValText = getVal(row.getCell(9));
+        const notesVal = getVal(row.getCell(10));
+
+        // Debug log for the first few rows
+        if (rowNumber <= 5) {
+          console.log(`Row ${rowNumber} read:`, { yearVal, planNumberVal, projectNameVal, statusValText });
+        }
 
         let status: Project['status'] = 'unregistered';
         if (statusValText === 'Đã đăng ký') status = 'registered';
         else if (statusValText === 'Tạm dừng') status = 'paused';
-        else if (statusValText === 'Đã hủy') status = 'cancelled';
+        else if (statusValText === 'Hủy' || statusValText === 'Đã hủy') status = 'cancelled';
 
-        if (projectNameVal) {
-          newProjects.push({
+        if (projectNameVal || planNumberVal) {
+          projectsToImport.push({
             id: Math.random().toString(36).substr(2, 9),
-            year: Number(yearVal) || new Date().getFullYear(),
-            planNumber: String(planNumberVal || ''),
-            projectName: String(projectNameVal || ''),
-            totalInvestment: Number(totalInvestmentVal) || 0,
-            scale: String(scaleVal || ''),
-            pcgdDocument: String(pcgdDocumentVal || ''),
-            evnhcmcDocument: String(evnhcmcDocumentVal || ''),
+            year: yearVal || new Date().getFullYear(),
+            planNumber: planNumberVal,
+            projectName: projectNameVal,
+            totalInvestment: totalInvestmentVal,
+            scale: scaleVal,
+            pcgdDocument: pcgdDocumentVal,
+            evnhcmcDocument: evnhcmcDocumentVal,
             status: status,
-            notes: String(notesVal || '')
+            notes: notesVal,
+            uid: user.uid,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           });
         }
       });
 
-      if (newProjects.length > 0) {
-        setProjects(newProjects);
-        alert(`Đã import thành công ${newProjects.length} dự án!`);
+      if (projectsToImport.length > 0) {
+        setLoading(true);
+        const batch = writeBatch(db);
+        
+        // 1. Delete existing projects for this user
+        const q = query(collection(db, 'projects'), where('uid', '==', user.uid));
+        const existingDocs = await getDocs(q);
+        existingDocs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+
+        // 2. Add new projects
+        projectsToImport.forEach(project => {
+          const projectRef = doc(db, 'projects', project.id);
+          batch.set(projectRef, project);
+        });
+
+        await batch.commit();
+        alert(`Đã làm mới dữ liệu thành công! Đã xóa dữ liệu cũ và import ${projectsToImport.length} dự án mới.`);
+        console.log(`Replaced data: Deleted ${existingDocs.size} and imported ${projectsToImport.length} projects for UID: ${user.uid}`);
       } else {
         alert('Không tìm thấy dữ liệu hợp lệ trong file Excel.');
       }
     } catch (error) {
       console.error('Lỗi khi import Excel:', error);
-      alert('Có lỗi xảy ra khi đọc file Excel.');
+      handleFirestoreError(error, OperationType.WRITE, 'projects_import');
+      alert('Có lỗi xảy ra khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -361,42 +488,12 @@ export default function App() {
     }
   };
 
-  const handleExportData = () => {
-    const dataStr = JSON.stringify(projects, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `backup_projects_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (Array.isArray(json)) {
-          if (confirm('Bạn có chắc chắn muốn khôi phục dữ liệu? Dữ liệu hiện tại sẽ bị thay thế.')) {
-            setProjects(json);
-            alert('Khôi phục dữ liệu thành công!');
-          }
-        } else {
-          alert('File không đúng định dạng dữ liệu dự án.');
-        }
-      } catch (error) {
-        console.error('Lỗi khi đọc file JSON:', error);
-        alert('Lỗi khi đọc file. Vui lòng kiểm tra lại file sao lưu.');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+  const handleRefresh = () => {
+    if (!user) return;
+    setLoading(true);
+    // The onSnapshot will automatically re-fire if we re-subscribe, 
+    // but here we just want to show the user we are doing something.
+    setTimeout(() => setLoading(false), 500);
   };
 
   return (
@@ -447,9 +544,9 @@ export default function App() {
                   <Calendar className={`w-5 h-5 ${selectedYear === year ? 'text-amber-500' : 'text-slate-500'}`} />
                   Năm {year}
                   <span className={`ml-auto text-xs py-1 px-2.5 rounded-full font-medium ${
-                    selectedYear === year ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
+                    String(selectedYear) === String(year) ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
                   }`}>
-                    {projects.filter(p => p.year === year).length}
+                    {projects.filter(p => String(p.year) === String(year)).length}
                   </span>
                 </button>
               ))}
@@ -473,7 +570,7 @@ export default function App() {
                 <span className={`ml-auto text-xs py-1 px-2.5 rounded-full font-medium ${
                   selectedStatus === 'all' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
                 }`}>
-                  {projects.filter(p => (selectedYear === 'all' || p.year === selectedYear)).length}
+                  {projects.filter(p => (selectedYear === 'all' || String(p.year) === String(selectedYear))).length}
                 </span>
               </button>
 
@@ -499,7 +596,7 @@ export default function App() {
                     <span className={`ml-auto text-[10px] py-0.5 px-2 rounded-full font-medium ${
                       selectedStatus === status.id ? 'bg-amber-500/80 text-white' : 'bg-slate-800/50 text-slate-500'
                     }`}>
-                      {projects.filter(p => (selectedYear === 'all' || p.year === selectedYear) && p.status === status.id).length}
+                      {projects.filter(p => (selectedYear === 'all' || String(p.year) === String(selectedYear)) && p.status === status.id).length}
                     </span>
                   </button>
                 ))}
@@ -509,21 +606,10 @@ export default function App() {
         </div>
 
         <div className="p-4 border-t border-slate-800 mt-auto">
-          <h2 className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2 px-2">Hệ thống</h2>
-          <div className="grid grid-cols-2 gap-2">
-            <button 
-              onClick={handleExportData}
-              className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded md transition-all border border-slate-800 group"
-              title="Sao lưu dữ liệu"
-            >
-              <Download className="w-3 h-3 group-hover:text-blue-400 transition-colors" />
-              <span className="text-[9px] font-medium uppercase">Sao lưu</span>
-            </button>
-            <label className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded md transition-all border border-slate-800 cursor-pointer group" title="Khôi phục dữ liệu">
-              <Upload className="w-3 h-3 group-hover:text-emerald-400 transition-colors" />
-              <span className="text-[9px] font-medium uppercase">Khôi phục</span>
-              <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
-            </label>
+          <div className="flex items-center justify-center py-2">
+            <p className="text-[10px] text-slate-500 italic">
+              {user ? `Đã đồng bộ ${projects.length} dự án` : 'Đăng nhập để lưu dữ liệu'}
+            </p>
           </div>
         </div>
       </div>
@@ -531,31 +617,73 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm z-0 gap-6">
+        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm z-0 gap-4">
           <div className="shrink-0">
-            <div className="inline-flex items-center gap-2 mb-1">
-              <CalendarCheck2 className="w-7 h-7 text-yellow-500" />
-              <span className="text-xl font-bold tracking-tight text-slate-900">
+            <div className="inline-flex items-center gap-1.5 mb-0.5">
+              <CalendarCheck2 className="w-5 h-5 text-yellow-500" />
+              <span className="text-lg font-bold tracking-tight text-slate-900">
                 {selectedYear === 'all' ? 'Tất cả các năm' : `Năm ${selectedYear}`}
               </span>
             </div>
-            <p className="text-sm text-slate-400 font-normal italic">Quản lý và theo dõi danh mục dự án</p>
+            <p className="text-[11px] text-slate-400 font-normal italic">Quản lý và theo dõi danh mục dự án</p>
           </div>
           
-          <div className="flex-1 px-4 flex justify-end">
-            <div className="relative w-full max-w-md">
-              <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="flex-1 px-2">
+            <div className="relative w-full">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Tìm số hiệu, tên dự án, VB..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 hover:border-yellow-500 transition-all w-full text-slate-900 placeholder-slate-400 shadow-md hover:shadow-lg focus:shadow-lg"
+                className="pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 hover:border-yellow-500 transition-all w-full text-slate-900 placeholder-slate-400 shadow-sm hover:shadow-md focus:shadow-md"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
+            {user ? (
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleRefresh}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
+                  title="Làm mới dữ liệu"
+                >
+                  <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+                <div className="h-4 w-[1px] bg-slate-200 mx-1"></div>
+                <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-white shadow-sm" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                    <UserIcon className="w-4 h-4 text-slate-500" />
+                  </div>
+                )}
+                <div className="hidden md:block">
+                  <p className="text-xs font-bold text-slate-900 leading-none">{user.displayName || 'Người dùng'}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{user.email}</p>
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                  title="Đăng xuất"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+              </div>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+                className="flex items-center gap-2 bg-yellow-400 text-slate-900 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition-all shadow-md active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                {isLoggingIn ? 'Đang kết nối...' : 'Đăng nhập Google'}
+              </button>
+            )}
+
             <div className="flex items-center gap-2">
               <input 
                 type="file" 
@@ -566,31 +694,77 @@ export default function App() {
               />
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-yellow-400 hover:border-yellow-400 hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 whitespace-nowrap"
+                className="flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-yellow-400 hover:border-yellow-400 hover:text-slate-900 px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 active:translate-y-0 whitespace-nowrap"
               >
-                <Upload className="w-4 h-4" />
-                Import Excel
+                <Upload className="w-3.5 h-3.5" />
+                Import
               </button>
               <button 
                 onClick={handleExportExcel}
-                className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-yellow-400 hover:border-yellow-400 hover:text-slate-900 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 whitespace-nowrap"
+                className="flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-yellow-400 hover:border-yellow-400 hover:text-slate-900 px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 active:translate-y-0 whitespace-nowrap"
               >
-                <Download className="w-4 h-4" />
-                Export Excel
+                <Download className="w-3.5 h-3.5" />
+                Export
               </button>
             </div>
             <button 
               onClick={openAddModal}
-              className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 shadow-emerald-700/20 active:scale-95 active:translate-y-0 whitespace-nowrap"
+              className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 shadow-emerald-700/20 active:scale-95 active:translate-y-0 whitespace-nowrap"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Thêm mới
             </button>
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 p-8 bg-slate-100 overflow-hidden flex flex-col">
+        <main className="flex-1 p-8 bg-slate-100 overflow-hidden flex flex-col relative">
+          <AnimatePresence>
+            {!user && isAuthReady && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-20 bg-slate-100/80 backdrop-blur-sm flex items-center justify-center p-6"
+              >
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  className="bg-white p-6 rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full text-center"
+                >
+                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                    <DashboardLogo className="w-14 h-14" />
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2">Chào mừng bạn!</h2>
+                  <p className="text-sm text-slate-500 mb-6">Vui lòng đăng nhập bằng tài khoản Google để lưu trữ dữ liệu vĩnh viễn và đồng bộ trên mọi thiết bị.</p>
+                  <button 
+                    onClick={handleLogin}
+                    disabled={isLoggingIn}
+                    className="w-full flex items-center justify-center gap-2 bg-yellow-400 text-slate-900 px-5 py-3 rounded-xl text-base font-bold hover:bg-yellow-500 transition-all shadow-lg active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
+                    {isLoggingIn ? 'Đang kết nối...' : 'Đăng nhập với Google'}
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {loading && user && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 z-20 bg-slate-100/40 backdrop-blur-[2px] flex items-center justify-center"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-12 h-12 text-yellow-500 animate-spin" />
+                <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu...</p>
+              </div>
+            </motion.div>
+          )}
+
           <div className="bg-white rounded-xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex-1 flex flex-col overflow-hidden">
             <div className="overflow-y-auto flex-1">
               <table className="w-full text-left border-collapse">
@@ -677,6 +851,18 @@ export default function App() {
                         </div>
                         <p className="text-lg font-bold text-slate-900">Không tìm thấy dự án nào</p>
                         <p className="text-sm mt-1 text-slate-500">Thử thay đổi từ khóa tìm kiếm hoặc thêm phương án mới.</p>
+                        
+                        {user && projects.length === 0 && !loading && (
+                          <div className="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-xl max-w-md text-center">
+                            <p className="text-xs text-amber-800 mb-2 font-bold flex items-center justify-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> LƯU Ý VỀ DỮ LIỆU ĐÁM MÂY
+                            </p>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                              Nếu bạn đã import dữ liệu nhưng không thấy hiện lên, hãy nhấn nút <strong>Làm mới</strong> (biểu tượng xoay ở góc trên bên phải). 
+                              Đảm bảo bạn đang đăng nhập đúng tài khoản <strong>{user.email}</strong>.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
