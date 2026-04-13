@@ -1,28 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip, CalendarCheck2, LogIn, LogOut, User as UserIcon, Loader2 } from 'lucide-react';
+import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip, CalendarCheck2, Loader2 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  auth, 
-  db, 
-  googleProvider, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged, 
-  collection, 
-  doc, 
-  setDoc, 
-  onSnapshot, 
-  query, 
-  where, 
-  getDocs,
-  deleteDoc, 
-  handleFirestoreError, 
-  OperationType,
-  User
-} from './lib/firebase';
-import { writeBatch } from 'firebase/firestore';
 
 interface Project {
   id: string;
@@ -35,7 +15,6 @@ interface Project {
   pcgdDocument: string;
   evnhcmcDocument: string;
   notes: string;
-  uid?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -111,73 +90,31 @@ const INITIAL_PROJECTS: Project[] = [
 ];
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Auth Listener
+  // Local Storage Loader
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsAuthReady(true);
-      if (!currentUser) {
-        setProjects([]);
-        setLoading(false);
+    const savedData = localStorage.getItem('qpa_projects');
+    if (savedData) {
+      try {
+        setProjects(JSON.parse(savedData));
+      } catch (e) {
+        console.error('Failed to parse local storage data', e);
+        setProjects(INITIAL_PROJECTS);
       }
-    });
-    return () => unsubscribe();
+    } else {
+      setProjects(INITIAL_PROJECTS);
+    }
+    setLoading(false);
   }, []);
 
-  // Firestore Listener
+  // Sync to Local Storage
   useEffect(() => {
-    if (!isAuthReady || !user) return;
-
-    setLoading(true);
-    const q = query(collection(db, 'projects'), where('uid', '==', user.uid));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const projectsData: Project[] = [];
-      snapshot.forEach((doc) => {
-        projectsData.push({ ...doc.data(), id: doc.id } as Project);
-      });
-      console.log(`Firestore: Loaded ${projectsData.length} projects for UID: ${user.uid}`);
-      // Sort by createdAt descending
-      projectsData.sort((a: any, b: any) => {
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
-      setProjects(projectsData);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'projects');
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [isAuthReady, user]);
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Login failed:', error);
-    } finally {
-      setIsLoggingIn(false);
+    if (!loading) {
+      localStorage.setItem('qpa_projects', JSON.stringify(projects));
     }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
+  }, [projects, loading]);
 
   const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -238,45 +175,33 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleSaveProject = async (e: React.FormEvent) => {
+  const handleSaveProject = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     if (!formData.planNumber || !formData.projectName || !formData.totalInvestment || !formData.year) return;
 
-    try {
-      if (editingId) {
-        const projectRef = doc(db, 'projects', editingId);
-        const updatedData = {
-          ...formData,
-          updatedAt: new Date().toISOString()
-        };
-        await setDoc(projectRef, updatedData, { merge: true });
-      } else {
-        const newId = Math.random().toString(36).substr(2, 9);
-        const projectRef = doc(db, 'projects', newId);
-        const newProject = {
-          ...formData,
-          id: newId,
-          uid: user.uid,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        await setDoc(projectRef, newProject);
-      }
-      setIsModalOpen(false);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'projects');
+    if (editingId) {
+      setProjects(prev => prev.map(p => p.id === editingId ? {
+        ...formData,
+        id: editingId,
+        updatedAt: new Date().toISOString()
+      } as Project : p));
+    } else {
+      const newId = Math.random().toString(36).substr(2, 9);
+      const newProject: Project = {
+        ...formData,
+        id: newId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      } as Project;
+      setProjects(prev => [newProject, ...prev]);
     }
+    setIsModalOpen(false);
   };
 
-  const handleDeleteProject = async () => {
-    if (projectToDelete && user) {
-      try {
-        await deleteDoc(doc(db, 'projects', projectToDelete.id));
-        setProjectToDelete(null);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `projects/${projectToDelete.id}`);
-      }
+  const handleDeleteProject = () => {
+    if (projectToDelete) {
+      setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
+      setProjectToDelete(null);
     }
   };
 
@@ -371,10 +296,7 @@ export default function App() {
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) {
-      if (!user) alert('Vui lòng đăng nhập để import dữ liệu.');
-      return;
-    }
+    if (!file) return;
 
     try {
       const workbook = new ExcelJS.Workbook();
@@ -447,7 +369,6 @@ export default function App() {
             evnhcmcDocument: evnhcmcDocumentVal,
             status: status,
             notes: notesVal,
-            uid: user.uid,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           });
@@ -456,32 +377,17 @@ export default function App() {
 
       if (projectsToImport.length > 0) {
         setLoading(true);
-        const batch = writeBatch(db);
-        
-        // 1. Delete existing projects for this user
-        const q = query(collection(db, 'projects'), where('uid', '==', user.uid));
-        const existingDocs = await getDocs(q);
-        existingDocs.forEach((doc) => {
-          batch.delete(doc.ref);
-        });
-
-        // 2. Add new projects
-        projectsToImport.forEach(project => {
-          const projectRef = doc(db, 'projects', project.id);
-          batch.set(projectRef, project);
-        });
-
-        await batch.commit();
+        // Replace all data as requested
+        setProjects(projectsToImport);
         alert(`Đã làm mới dữ liệu thành công! Đã xóa dữ liệu cũ và import ${projectsToImport.length} dự án mới.`);
-        console.log(`Replaced data: Deleted ${existingDocs.size} and imported ${projectsToImport.length} projects for UID: ${user.uid}`);
       } else {
         alert('Không tìm thấy dữ liệu hợp lệ trong file Excel.');
       }
     } catch (error) {
       console.error('Lỗi khi import Excel:', error);
-      handleFirestoreError(error, OperationType.WRITE, 'projects_import');
       alert('Có lỗi xảy ra khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
     } finally {
+      setLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -489,10 +395,7 @@ export default function App() {
   };
 
   const handleRefresh = () => {
-    if (!user) return;
     setLoading(true);
-    // The onSnapshot will automatically re-fire if we re-subscribe, 
-    // but here we just want to show the user we are doing something.
     setTimeout(() => setLoading(false), 500);
   };
 
@@ -608,7 +511,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-800 mt-auto">
           <div className="flex items-center justify-center py-2">
             <p className="text-[10px] text-slate-500 italic">
-              {user ? `Đã đồng bộ ${projects.length} dự án` : 'Đăng nhập để lưu dữ liệu'}
+              Đã lưu {projects.length} dự án vào trình duyệt
             </p>
           </div>
         </div>
@@ -642,47 +545,15 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4 shrink-0">
-            {user ? (
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleRefresh}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
-                  title="Làm mới dữ liệu"
-                >
-                  <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                </button>
-                <div className="h-4 w-[1px] bg-slate-200 mx-1"></div>
-                <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-white shadow-sm" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
-                    <UserIcon className="w-4 h-4 text-slate-500" />
-                  </div>
-                )}
-                <div className="hidden md:block">
-                  <p className="text-xs font-bold text-slate-900 leading-none">{user.displayName || 'Người dùng'}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{user.email}</p>
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-                  title="Đăng xuất"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-              </div>
-            ) : (
+            <div className="flex items-center gap-2">
               <button 
-                onClick={handleLogin}
-                disabled={isLoggingIn}
-                className="flex items-center gap-2 bg-yellow-400 text-slate-900 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition-all shadow-md active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                onClick={handleRefresh}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
+                title="Làm mới dữ liệu"
               >
-                {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                {isLoggingIn ? 'Đang kết nối...' : 'Đăng nhập Google'}
+                <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
-            )}
+            </div>
 
             <div className="flex items-center gap-2">
               <input 
@@ -719,40 +590,7 @@ export default function App() {
 
         {/* Content Area */}
         <main className="flex-1 p-8 bg-slate-100 overflow-hidden flex flex-col relative">
-          <AnimatePresence>
-            {!user && isAuthReady && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-20 bg-slate-100/80 backdrop-blur-sm flex items-center justify-center p-6"
-              >
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                  className="bg-white p-6 rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full text-center"
-                >
-                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
-                    <DashboardLogo className="w-14 h-14" />
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-2">Chào mừng bạn!</h2>
-                  <p className="text-sm text-slate-500 mb-6">Vui lòng đăng nhập bằng tài khoản Google để lưu trữ dữ liệu vĩnh viễn và đồng bộ trên mọi thiết bị.</p>
-                  <button 
-                    onClick={handleLogin}
-                    disabled={isLoggingIn}
-                    className="w-full flex items-center justify-center gap-2 bg-yellow-400 text-slate-900 px-5 py-3 rounded-xl text-base font-bold hover:bg-yellow-500 transition-all shadow-lg active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {isLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
-                    {isLoggingIn ? 'Đang kết nối...' : 'Đăng nhập với Google'}
-                  </button>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {loading && user && (
+          {loading && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -760,7 +598,7 @@ export default function App() {
             >
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-12 h-12 text-yellow-500 animate-spin" />
-                <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu...</p>
+                <p className="text-sm font-medium text-slate-600">Đang xử lý...</p>
               </div>
             </motion.div>
           )}
@@ -852,14 +690,15 @@ export default function App() {
                         <p className="text-lg font-bold text-slate-900">Không tìm thấy dự án nào</p>
                         <p className="text-sm mt-1 text-slate-500">Thử thay đổi từ khóa tìm kiếm hoặc thêm phương án mới.</p>
                         
-                        {user && projects.length === 0 && !loading && (
+                        {projects.length === 0 && !loading && (
                           <div className="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-xl max-w-md text-center">
                             <p className="text-xs text-amber-800 mb-2 font-bold flex items-center justify-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> LƯU Ý VỀ DỮ LIỆU ĐÁM MÂY
+                              <AlertTriangle className="w-3 h-3" /> LƯU Ý VỀ DỮ LIỆU
                             </p>
                             <p className="text-[11px] text-amber-700 leading-relaxed">
-                              Nếu bạn đã import dữ liệu nhưng không thấy hiện lên, hãy nhấn nút <strong>Làm mới</strong> (biểu tượng xoay ở góc trên bên phải). 
-                              Đảm bảo bạn đang đăng nhập đúng tài khoản <strong>{user.email}</strong>.
+                              Dữ liệu hiện đang được lưu trực tiếp trên trình duyệt Chrome của máy tính này. 
+                              Nếu bạn xóa lịch sử duyệt web hoặc đổi máy tính, dữ liệu sẽ không còn. 
+                              Hãy sử dụng chức năng <strong>Export</strong> để sao lưu dữ liệu thường xuyên.
                             </p>
                           </div>
                         )}

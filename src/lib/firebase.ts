@@ -15,6 +15,7 @@ setPersistence(auth, browserLocalPersistence);
 
 // Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // Error handling helper
 export enum OperationType {
