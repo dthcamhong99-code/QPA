@@ -513,10 +513,10 @@ export default function App() {
                 <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
                   <tr className="border-b border-slate-200">
                     <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-40">Phương án</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center">Tên dự án</th>
-                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap">TMĐT (đồng)</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center w-[35%]">Tên dự án</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap w-40">TMĐT (đồng)</th>
                     <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap w-32">Tình trạng</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center">Ghi chú</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center w-[35%]">Ghi chú</th>
                     <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-20 whitespace-nowrap">Thao tác</th>
                   </tr>
               </thead>
@@ -529,8 +529,8 @@ export default function App() {
                           {project.planNumber}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-justify">
-                        <p className="text-sm font-normal text-slate-900">{project.projectName}</p>
+                      <td className="px-6 py-4 text-justify w-[35%]">
+                        <p className="text-sm font-normal text-slate-900 break-words">{project.projectName}</p>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-center">
                         <span className="text-sm font-normal text-slate-700">{formatCurrency(project.totalInvestment)}</span>
@@ -554,8 +554,8 @@ export default function App() {
                            project.status === 'paused' ? 'Tạm dừng' : 'Hủy'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-justify">
-                        <p className="text-sm font-normal text-slate-700">{project.notes || '-'}</p>
+                      <td className="px-6 py-4 text-justify w-[35%]">
+                        <p className="text-sm font-normal text-slate-700 break-words">{project.notes || '-'}</p>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -660,17 +660,17 @@ export default function App() {
               <div className="grid grid-cols-2 gap-8">
                 <div>
                   <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">PCGĐ đăng ký</p>
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-base text-slate-900 font-medium">
+                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-base text-slate-900 font-medium whitespace-pre-wrap leading-relaxed">
                     {viewingScaleProject.pcgdDocument ? (
-                      <span className="flex items-center gap-2"><FileCheck className="w-5 h-5 text-emerald-600"/> {viewingScaleProject.pcgdDocument}</span>
+                      <div className="flex gap-2"><FileCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5"/> <span>{viewingScaleProject.pcgdDocument}</span></div>
                     ) : <span className="text-slate-400 italic">Chưa có</span>}
                   </div>
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">EVNHCMC chấp thuận</p>
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-base text-slate-900 font-medium">
+                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-base text-slate-900 font-medium whitespace-pre-wrap leading-relaxed">
                     {viewingScaleProject.evnhcmcDocument ? (
-                      <span className="flex items-center gap-2"><FileCheck className="w-5 h-5 text-emerald-600"/> {viewingScaleProject.evnhcmcDocument}</span>
+                      <div className="flex gap-2"><FileCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5"/> <span>{viewingScaleProject.evnhcmcDocument}</span></div>
                     ) : <span className="text-slate-400 italic">Chưa có</span>}
                   </div>
                 </div>
@@ -817,12 +817,12 @@ export default function App() {
                     <FileCheck className="w-5 h-5 text-emerald-600" />
                     PCGĐ đăng ký
                   </label>
-                  <input 
-                    type="text" 
+                  <textarea 
+                    rows={2}
                     placeholder="VD: .../PCGĐ-KH ngày .../.../..."
                     value={formData.pcgdDocument || ''}
                     onChange={e => setFormData({...formData, pcgdDocument: e.target.value})}
-                    className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 bg-white placeholder-slate-400"
+                    className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 bg-white placeholder-slate-400 resize-none"
                   />
                 </div>
 
@@ -831,12 +831,12 @@ export default function App() {
                     <FileCheck className="w-5 h-5 text-emerald-600" />
                     EVNHCMC chấp thuận
                   </label>
-                  <input 
-                    type="text" 
+                  <textarea 
+                    rows={2}
                     placeholder="VD: .../EVNHCMC-KH ngày .../.../..."
                     value={formData.evnhcmcDocument || ''}
                     onChange={e => setFormData({...formData, evnhcmcDocument: e.target.value})}
-                    className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 bg-white placeholder-slate-400"
+                    className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 bg-white placeholder-slate-400 resize-none"
                   />
                 </div>
               </div>
