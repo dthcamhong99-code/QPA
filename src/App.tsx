@@ -18,6 +18,9 @@ interface Project {
 
 const DashboardLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
+    {/* Background */}
+    <circle cx="50" cy="50" r="48" fill="#ffffff" />
+    
     {/* Arrow */}
     <path d="M 15 55 L 75 15" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
     <path d="M 60 15 L 75 15 L 75 30" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
