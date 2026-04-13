@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip } from 'lucide-react';
+import { Search, Plus, Folder, Calendar, CheckCircle2, Circle, X, Compass, DollarSign, FileText, FileCheck, Pencil, AlignLeft, Maximize, PauseCircle, XCircle, Trash2, AlertTriangle, Download, Upload, Eye, Paperclip, CalendarCheck2 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -454,8 +454,11 @@ export default function App() {
         {/* Header */}
         <header className="bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm z-0 gap-6">
           <div className="shrink-0">
-            <h2 className="text-2xl font-bold text-slate-900">Năm {selectedYear}</h2>
-            <p className="text-base text-slate-500 mt-1 font-medium italic">Quản lý và theo dõi danh mục dự án</p>
+            <div className="inline-flex items-center gap-2 mb-1">
+              <CalendarCheck2 className="w-7 h-7 text-yellow-500" />
+              <span className="text-xl font-bold tracking-tight text-slate-900">Năm {selectedYear}</span>
+            </div>
+            <p className="text-sm text-slate-400 font-normal italic">Quản lý và theo dõi danh mục dự án</p>
           </div>
           
           <div className="flex-1 px-4 flex justify-end">
@@ -512,20 +515,20 @@ export default function App() {
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
                   <tr className="border-b border-slate-200">
-                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-40">Phương án</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-[380px]">Phương án</th>
                     <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center w-[35%]">Tên dự án</th>
                     <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap w-40">TMĐT (đồng)</th>
                     <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center whitespace-nowrap w-32">Tình trạng</th>
-                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center w-[35%]">Ghi chú</th>
-                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-20 whitespace-nowrap">Thao tác</th>
+                    <th className="px-6 py-3 text-sm font-medium text-slate-900 text-center w-[20%]">Ghi chú</th>
+                    <th className="px-4 py-3 text-sm font-medium text-slate-900 text-center w-16 whitespace-nowrap">Thao tác</th>
                   </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProjects.length > 0 ? (
                   filteredProjects.map((project) => (
                     <tr key={project.id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="px-4 py-4">
-                        <span className="text-slate-900 font-normal text-sm break-words w-full">
+                      <td className="px-4 py-4 w-[380px]">
+                        <span className="text-slate-900 font-normal text-sm w-full whitespace-pre-wrap">
                           {project.planNumber}
                         </span>
                       </td>
@@ -554,31 +557,31 @@ export default function App() {
                            project.status === 'paused' ? 'Tạm dừng' : 'Hủy'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-justify w-[35%]">
+                      <td className="px-6 py-4 text-justify w-[20%]">
                         <p className="text-sm font-normal text-slate-700 break-words">{project.notes || '-'}</p>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="px-4 py-4 whitespace-nowrap text-center w-16">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button 
                             onClick={() => openEditModal(project)}
-                            className="p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 rounded-md transition-colors inline-flex"
+                            className="p-1 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 rounded-md transition-colors inline-flex"
                             title="Chỉnh sửa"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button 
                             onClick={() => setViewingScaleProject(project)}
-                            className="p-1.5 text-slate-400 hover:bg-yellow-50 hover:text-yellow-600 rounded-md transition-colors inline-flex"
+                            className="p-1 text-slate-400 hover:bg-yellow-50 hover:text-yellow-600 rounded-md transition-colors inline-flex"
                             title="Xem thông tin dự án"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
                           <button 
                             onClick={() => setProjectToDelete(project)}
-                            className="p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors inline-flex"
+                            className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors inline-flex"
                             title="Xóa"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -736,13 +739,13 @@ export default function App() {
                     <FileText className="w-5 h-5 text-emerald-600" />
                     Số hiệu phương án
                   </label>
-                  <input 
-                    type="text" 
+                  <textarea 
                     required
+                    rows={2}
                     placeholder="VD: .../PA-PCGĐ ngày .../.../..."
                     value={formData.planNumber || ''}
                     onChange={e => setFormData({...formData, planNumber: e.target.value})}
-                    className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 bg-white placeholder-slate-400"
+                    className="w-full px-5 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 outline-none transition-all text-base text-slate-900 resize-none bg-white placeholder-slate-400"
                   />
                 </div>
               </div>
