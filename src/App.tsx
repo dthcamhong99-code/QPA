@@ -357,6 +357,44 @@ export default function App() {
     }
   };
 
+  const handleExportData = () => {
+    const dataStr = JSON.stringify(projects, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_projects_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (Array.isArray(json)) {
+          if (confirm('Bạn có chắc chắn muốn khôi phục dữ liệu? Dữ liệu hiện tại sẽ bị thay thế.')) {
+            setProjects(json);
+            alert('Khôi phục dữ liệu thành công!');
+          }
+        } else {
+          alert('File không đúng định dạng dữ liệu dự án.');
+        }
+      } catch (error) {
+        console.error('Lỗi khi đọc file JSON:', error);
+        alert('Lỗi khi đọc file. Vui lòng kiểm tra lại file sao lưu.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
       
@@ -445,6 +483,25 @@ export default function App() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-slate-800 mt-auto">
+          <h2 className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2 px-2">Hệ thống</h2>
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              onClick={handleExportData}
+              className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded md transition-all border border-slate-800 group"
+              title="Sao lưu dữ liệu"
+            >
+              <Download className="w-3 h-3 group-hover:text-blue-400 transition-colors" />
+              <span className="text-[9px] font-medium uppercase">Sao lưu</span>
+            </button>
+            <label className="flex items-center justify-center gap-1.5 py-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-500 hover:text-slate-300 rounded md transition-all border border-slate-800 cursor-pointer group" title="Khôi phục dữ liệu">
+              <Upload className="w-3 h-3 group-hover:text-emerald-400 transition-colors" />
+              <span className="text-[9px] font-medium uppercase">Khôi phục</span>
+              <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
+            </label>
           </div>
         </div>
       </div>
