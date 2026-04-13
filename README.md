@@ -18,19 +18,58 @@ Bạn **không thể** mở trực tiếp file `index.html` bằng trình duyệ
     ```
 5.  **Truy cập**: Mở trình duyệt và truy cập địa chỉ `http://localhost:3000` (hoặc địa chỉ hiển thị trong terminal).
 
-## 2. Triển khai lên GitHub Pages (Cách đơn giản nhất, không bị lỗi 404)
+## 2. Triển khai lên GitHub Pages (Bằng GitHub Actions)
 
-Hệ thống đã được cấu hình lại để tự động xuất file chạy vào thư mục `docs`. Bạn không cần dùng GitHub Actions hay lệnh phức tạp nào nữa.
+Hệ thống đã được dọn dẹp sạch sẽ các cấu hình xung đột. Ứng dụng sẽ được build ra thư mục `dist` theo chuẩn mặc định của Vite.
 
-**Các bước thực hiện:**
-1. Nhấn nút **Save to GitHub** (hoặc Push code) từ AI Studio lên nhánh `main` của bạn.
+**Để triển khai tự động bằng GitHub Actions (Không bị lỗi quyền từ AI Studio):**
+
+1. Nhấn nút **Save to GitHub** từ AI Studio để lưu mã nguồn lên GitHub (Sẽ không bị lỗi quyền nữa vì file workflow không nằm trên AI Studio).
 2. Truy cập vào kho lưu trữ (repository) của bạn trên trang web GitHub.
-3. Vào mục **Settings** > **Pages**.
-4. Ở phần **Build and deployment** > **Source**, chọn **Deploy from a branch**.
-5. Ở phần **Branch**, chọn nhánh **`main`**, và ở ô thư mục bên cạnh, chọn **`/docs`**.
-6. Nhấn **Save**.
+3. Nhấn **Add file** > **Create new file**.
+4. Nhập tên file là: `.github/workflows/deploy.yml`
+5. Copy nội dung sau dán vào file:
 
-Đợi khoảng 1-2 phút, GitHub sẽ tự động cập nhật trang web của bạn từ thư mục `docs` mà không gặp bất kỳ lỗi phân quyền hay 404 nào.
+```yaml
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches: [ main ]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm install
+      - run: npm run build
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+6. Nhấn **Commit changes...** để lưu file.
+7. Vào **Settings** > **Pages** của kho lưu trữ.
+8. Ở mục **Source**, chọn **GitHub Actions**.
+
+Từ giờ, mỗi lần bạn Push code từ AI Studio, GitHub sẽ tự động chạy Action này để cập nhật web.
 
 ## 3. Lỗi thường gặp
 - **"404 Not Found" trên GitHub**: Hãy kiểm tra xem bạn đã bật GitHub Pages trong phần Settings của repository chưa.
