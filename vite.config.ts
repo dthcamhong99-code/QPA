@@ -7,7 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: '/QPA/',
+    base: './',
+    build: {
+      outDir: 'docs',
+      emptyOutDir: true,
+    },
     plugins: [
       react(), 
       tailwindcss(),

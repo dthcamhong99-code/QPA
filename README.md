@@ -18,26 +18,19 @@ Bạn **không thể** mở trực tiếp file `index.html` bằng trình duyệ
     ```
 5.  **Truy cập**: Mở trình duyệt và truy cập địa chỉ `http://localhost:3000` (hoặc địa chỉ hiển thị trong terminal).
 
-## 2. Triển khai lên GitHub Pages (404 Error Fix)
+## 2. Triển khai lên GitHub Pages (Cách đơn giản nhất, không bị lỗi 404)
 
-Lỗi 404 bạn gặp phải là do GitHub Pages chưa được kích hoạt hoặc chưa nhận được các file đã biên dịch (build).
+Hệ thống đã được cấu hình lại để tự động xuất file chạy vào thư mục `docs`. Bạn không cần dùng GitHub Actions hay lệnh phức tạp nào nữa.
 
-### Cách 1: Sử dụng GitHub Actions (Khuyên dùng)
-1. Đẩy mã nguồn lên một repository trên GitHub.
-2. Vào **Settings** > **Pages**.
-3. Ở mục **Build and deployment** > **Source**, chọn **GitHub Actions**.
-4. GitHub sẽ tự động nhận diện ứng dụng Vite và triển khai cho bạn.
+**Các bước thực hiện:**
+1. Nhấn nút **Save to GitHub** (hoặc Push code) từ AI Studio lên nhánh `main` của bạn.
+2. Truy cập vào kho lưu trữ (repository) của bạn trên trang web GitHub.
+3. Vào mục **Settings** > **Pages**.
+4. Ở phần **Build and deployment** > **Source**, chọn **Deploy from a branch**.
+5. Ở phần **Branch**, chọn nhánh **`main`**, và ở ô thư mục bên cạnh, chọn **`/docs`**.
+6. Nhấn **Save**.
 
-### Cách 2: Triển khai thủ công
-1. Biên dịch ứng dụng:
-   ```bash
-   npm run build
-   ```
-2. Sau khi chạy lệnh trên, một thư mục tên là `dist` sẽ được tạo ra.
-3. Bạn cần đẩy nội dung của thư mục `dist` này lên nhánh `gh-pages` hoặc cấu hình GitHub Pages để phục vụ từ thư mục này.
-
-**Lưu ý về đường dẫn (Base Path):**
-Trong file `vite.config.ts`, tôi đã đặt `base: './'`. Điều này giúp ứng dụng có thể chạy ở bất kỳ thư mục nào. Nếu bạn triển khai lên `username.github.io/ten-kho-luu-tru/`, cấu hình này sẽ đảm bảo các file CSS/JS được tải đúng.
+Đợi khoảng 1-2 phút, GitHub sẽ tự động cập nhật trang web của bạn từ thư mục `docs` mà không gặp bất kỳ lỗi phân quyền hay 404 nào.
 
 ## 3. Lỗi thường gặp
 - **"404 Not Found" trên GitHub**: Hãy kiểm tra xem bạn đã bật GitHub Pages trong phần Settings của repository chưa.
