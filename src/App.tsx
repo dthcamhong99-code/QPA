@@ -18,44 +18,28 @@ interface Project {
 
 const DashboardLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-    {/* Background */}
-    <circle cx="50" cy="50" r="48" fill="#ffffff" />
-    
     {/* Arrow */}
-    <path d="M 24 42 L 62 22" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
-    <path d="M 50 22 L 62 22 L 56 32" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M 15 55 L 75 15" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
+    <path d="M 60 15 L 75 15 L 75 30" fill="none" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
     {/* Bars */}
-    {/* Bar 1 */}
-    <rect x="24" y="50" width="14" height="28" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
-    {/* Bar 2 */}
-    <rect x="42" y="42" width="14" height="36" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
-    {/* Bar 3 */}
-    <rect x="60" y="32" width="14" height="46" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
+    <rect x="15" y="50" width="14" height="30" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
+    <rect x="34" y="42" width="14" height="38" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
+    <rect x="53" y="32" width="14" height="48" fill="#2596be" stroke="#1e293b" strokeWidth="3" rx="1" />
 
     {/* Gear */}
-    <g transform="translate(66, 70)">
-      {/* Teeth Outlines */}
-      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" />
-      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" transform="rotate(45)" />
-      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" transform="rotate(90)" />
-      <rect x="-5" y="-22" width="10" height="44" fill="#1e293b" rx="2" transform="rotate(135)" />
+    <g transform="translate(68, 72)">
+      {/* Teeth */}
+      <rect x="-4" y="-20" width="8" height="40" fill="#f59e0b" stroke="#1e293b" strokeWidth="3" rx="1.5" />
+      <rect x="-4" y="-20" width="8" height="40" fill="#f59e0b" stroke="#1e293b" strokeWidth="3" rx="1.5" transform="rotate(45)" />
+      <rect x="-4" y="-20" width="8" height="40" fill="#f59e0b" stroke="#1e293b" strokeWidth="3" rx="1.5" transform="rotate(90)" />
+      <rect x="-4" y="-20" width="8" height="40" fill="#f59e0b" stroke="#1e293b" strokeWidth="3" rx="1.5" transform="rotate(135)" />
       
-      {/* Teeth Fills */}
-      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" />
-      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" transform="rotate(45)" />
-      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" transform="rotate(90)" />
-      <rect x="-3.5" y="-20.5" width="7" height="41" fill="#f59e0b" rx="1" transform="rotate(135)" />
+      {/* Main body */}
+      <circle cx="0" cy="0" r="14" fill="#f59e0b" stroke="#1e293b" strokeWidth="3" />
       
-      {/* Main body outline */}
-      <circle cx="0" cy="0" r="16" fill="#1e293b" />
-      {/* Main body fill */}
-      <circle cx="0" cy="0" r="14.5" fill="#f59e0b" />
-      
-      {/* Inner hole outline */}
-      <circle cx="0" cy="0" r="8.5" fill="#1e293b" />
-      {/* Inner hole fill */}
-      <circle cx="0" cy="0" r="7" fill="#ffffff" />
+      {/* Inner hole */}
+      <circle cx="0" cy="0" r="6" fill="#ffffff" stroke="#1e293b" strokeWidth="3" />
     </g>
   </svg>
 );
