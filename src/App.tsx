@@ -103,7 +103,7 @@ export default function App() {
     localStorage.setItem('qpa_projects', JSON.stringify(projects));
   }, [projects]);
 
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +130,7 @@ export default function App() {
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
-      const matchesYear = p.year === selectedYear;
+      const matchesYear = selectedYear === 'all' || p.year === selectedYear;
       const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
       const matchesSearch = p.planNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             p.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -143,7 +143,7 @@ export default function App() {
   const openAddModal = () => {
     setEditingId(null);
     setFormData({
-      year: selectedYear,
+      year: selectedYear === 'all' ? new Date().getFullYear() : selectedYear,
       status: 'unregistered',
       pcgdDocument: '',
       evnhcmcDocument: '',
@@ -186,7 +186,9 @@ export default function App() {
         notes: formData.notes || '',
       };
       setProjects(prev => [project, ...prev]);
-      setSelectedYear(project.year);
+      if (selectedYear !== 'all') {
+        setSelectedYear(project.year);
+      }
     }
     
     setIsModalOpen(false);
@@ -205,7 +207,8 @@ export default function App() {
 
   const handleExportExcel = async () => {
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet(`Dự án năm ${selectedYear}`);
+    const sheetName = selectedYear === 'all' ? 'Tất cả các năm' : `Dự án năm ${selectedYear}`;
+    const worksheet = workbook.addWorksheet(sheetName);
 
     // Define columns
     worksheet.columns = [
@@ -283,7 +286,8 @@ export default function App() {
 
     // Generate file
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), `Danh_sach_du_an_${selectedYear}.xlsx`);
+    const fileName = selectedYear === 'all' ? 'Danh_sach_du_an_tat_ca_cac_nam.xlsx' : `Danh_sach_du_an_${selectedYear}.xlsx`;
+    saveAs(new Blob([buffer]), fileName);
   };
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -412,6 +416,24 @@ export default function App() {
           <div>
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-3">Năm thực hiện</h2>
             <div className="space-y-1">
+              {/* All Years Filter */}
+              <button
+                onClick={() => setSelectedYear('all')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-base transition-all ${
+                  selectedYear === 'all' 
+                    ? 'bg-slate-700 text-white border-l-4 border-amber-500 font-semibold shadow-[0_0_15px_rgba(245,158,11,0.1)] ring-1 ring-amber-500/20' 
+                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border-l-4 border-transparent font-normal'
+                }`}
+              >
+                <Folder className={`w-5 h-5 ${selectedYear === 'all' ? 'text-amber-500' : 'text-slate-500'}`} />
+                Tất cả các năm
+                <span className={`ml-auto text-xs py-1 px-2.5 rounded-full font-medium ${
+                  selectedYear === 'all' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
+                }`}>
+                  {projects.length}
+                </span>
+              </button>
+
               {years.map(year => (
                 <button
                   key={year}
@@ -451,7 +473,7 @@ export default function App() {
                 <span className={`ml-auto text-xs py-1 px-2.5 rounded-full font-medium ${
                   selectedStatus === 'all' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'
                 }`}>
-                  {projects.filter(p => p.year === selectedYear).length}
+                  {projects.filter(p => (selectedYear === 'all' || p.year === selectedYear)).length}
                 </span>
               </button>
 
@@ -477,7 +499,7 @@ export default function App() {
                     <span className={`ml-auto text-[10px] py-0.5 px-2 rounded-full font-medium ${
                       selectedStatus === status.id ? 'bg-amber-500/80 text-white' : 'bg-slate-800/50 text-slate-500'
                     }`}>
-                      {projects.filter(p => p.year === selectedYear && p.status === status.id).length}
+                      {projects.filter(p => (selectedYear === 'all' || p.year === selectedYear) && p.status === status.id).length}
                     </span>
                   </button>
                 ))}
@@ -513,7 +535,9 @@ export default function App() {
           <div className="shrink-0">
             <div className="inline-flex items-center gap-2 mb-1">
               <CalendarCheck2 className="w-7 h-7 text-yellow-500" />
-              <span className="text-xl font-bold tracking-tight text-slate-900">Năm {selectedYear}</span>
+              <span className="text-xl font-bold tracking-tight text-slate-900">
+                {selectedYear === 'all' ? 'Tất cả các năm' : `Năm ${selectedYear}`}
+              </span>
             </div>
             <p className="text-sm text-slate-400 font-normal italic">Quản lý và theo dõi danh mục dự án</p>
           </div>
